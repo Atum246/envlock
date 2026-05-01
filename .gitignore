@@ -2,3 +2,4 @@ node_modules/
 .envlock/
 *.log
 .DS_Store
+.npmrc

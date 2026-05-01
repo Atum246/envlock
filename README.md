@@ -1,15 +1,36 @@
-# 🔐 Envlock
-
-**Secure Credential Vault for AI Agents**
-
-```
+<p align="center">
+  <pre align="center">
   ███████╗███╗   ██╗██╗   ██╗██╗      ██████╗  ██████╗██╗  ██╗
   ██╔════╝████╗  ██║██║   ██║██║     ██╔═══██╗██╔════╝██║ ██╔╝
   █████╗  ██╔██╗ ██║██║   ██║██║     ██║   ██║██║     █████╔╝
   ██╔══╝  ██║╚██╗██║██║   ██║██║     ██║   ██║██║     ██╔═██╗
   ███████╗██║ ╚████║╚██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗
   ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝
+  </pre>
+</p>
 
+<p align="center">
+  <strong>🔐 Secure Credential Vault for AI Agents</strong>
+</p>
+
+<p align="center">
+  <code>npm install -g envlock</code>
+</p>
+
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-for-ai-agents">For AI Agents</a> •
+  <a href="#-web-ui">Web UI</a> •
+  <a href="#-46-service-templates">Templates</a> •
+  <a href="#-commands">Commands</a> •
+  <a href="#-security">Security</a> •
+  <a href="#-contributing">Contributing</a>
+</p>
+
+---
+
+<p align="center">
+  <pre align="center">
        .-"""-.
       /        \
      |  .--.  |
@@ -19,68 +40,190 @@
      |  '--'  |
       \      /
        '-..-'
-```
+  </pre>
+</p>
 
-> Stop pasting API keys into chat. Start storing them securely. 🔐
+> **Stop pasting API keys into chat. Store them securely. Let your AI agent access them safely.**
 
 ---
 
-## 🤔 Why Envlock?
+## 🤔 The Problem
 
-When you use AI agents (OpenClaw, Claude Code, Cursor, etc.), you often need to provide API keys, tokens, and credentials. The current approach? **Just paste them into the chat.** 😬
+Every day, millions of users paste API keys, tokens, passwords, and credentials directly into AI chat interfaces. This is **dangerous**:
 
-**The problems:**
-- 🔓 Keys end up in conversation history
-- 📝 They get logged, stored, potentially trained on
-- 🎣 Prompt injection could exfiltrate your keys
-- 💀 Anyone who sees the chat sees your secrets
+| Risk | What Happens |
+|------|-------------|
+| 📝 **Conversation History** | Keys get stored on AI provider servers — forever |
+| 🔓 **Data Breaches** | If the provider gets hacked, your keys are exposed |
+| 🎣 **Prompt Injection** | Malicious prompts can trick the AI into leaking your keys |
+| 🤖 **Training Data** | Keys might end up in model training data |
+| 👀 **Screen Sharing** | Anyone who sees the chat sees your secrets |
+| 💀 **No Revocation** | You can't "un-paste" a key from chat history |
 
-**Envlock solves this:**
-- 🔐 Keys stored in an encrypted local vault
-- 🚫 Never enter conversation history
-- 🤖 AI agents access them through a secure API
-- 🌐 **Web UI** for users to paste secrets in a browser (not in chat!)
-- 📋 Full audit log of who accessed what & when
-- 📦 **40+ service templates** — pre-built forms for every major platform
+## 💡 The Solution: Envlock
+
+Envlock is a **secure local vault** that sits between users and AI agents. Instead of pasting keys into chat, users input them through a **secure web form**, and AI agents read them through a **safe API**.
+
+```
+❌ OLD WAY:
+User → [pastes key in chat] → AI Agent → External API
+         ↑
+    Key exposed in chat history, logs, training data
+
+✅ ENVLOCK WAY:
+User → [pastes key in web form] → Encrypted Vault → AI Agent → External API
+              ↑                         ↑
+    Never enters chat            Encrypted at rest
+    Localhost only               Agent reads via API
+```
 
 ---
 
 ## ⚡ Quick Start
 
-### For AI Agents (the primary use case)
+### For AI Agents (Primary Use Case)
+
+AI agents install and manage Envlock themselves. Users only interact through the web UI.
 
 ```bash
-# Agent installs envlock
+# 1. AI Agent installs Envlock
 npm install -g envlock
 
-# Agent initializes vault
+# 2. Agent initializes the vault
 envlock init
 
-# Agent starts web UI → user pastes secrets in browser
+# 3. Agent starts the web UI
 envlock serve
-# → Spins up http://127.0.0.1:PORT?token=SECRET
-# → User opens link, sees clean form, pastes keys
-# → Keys go straight into encrypted vault
-# → Agent reads them via API
+
+# 4. Agent tells user: "Open this link to add your keys"
+# → http://127.0.0.1:3847/?token=abc123...
+
+# 5. User opens link, picks a service, pastes key
+# → Key stored in encrypted vault (never in chat!)
+
+# 6. Agent reads the key when needed
+envlock get OPENAI_API_KEY
 ```
 
-### The Flow
+### The Complete Flow
 
 ```
-1. 🤖 AI Agent: npm install -g envlock && envlock init
-2. 🤖 AI Agent: envlock serve → gets URL with token
-3. 👤 User: opens URL in browser
-4. 👤 User: sees clean form, picks a service template (OpenAI, Stripe, etc.)
-5. 👤 User: pastes API key into the form
-6. 🔐 Key stored in encrypted vault (never in chat!)
-7. 🤖 AI Agent: envlock get OPENAI_API_KEY → uses it
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   User      │         │   Envlock    │         │  AI Agent   │
+│             │         │   (Vault)    │         │             │
+│ Opens link  │────────▶│ Web form     │         │             │
+│ Picks svc   │         │ AES-256      │         │             │
+│ Pastes key  │────────▶│ Encrypts     │         │             │
+│             │         │ Stores       │         │             │
+│             │         │              │◀────────│ Reads key   │
+│             │         │              │         │ Calls API   │
+│             │         │              │         │ Done ✅     │
+└─────────────┘         └──────────────┘         └─────────────┘
+
+Key NEVER enters chat. Key NEVER leaves localhost. Key is ALWAYS encrypted.
+```
+
+---
+
+## 🤖 For AI Agents
+
+Envlock is designed **specifically for AI agents** to install and manage. Here's how different agents use it:
+
+### OpenClaw
+
+```bash
+# OpenClaw agent runs:
+npm install -g envlock && envlock init
+
+# Agent starts web UI, gets URL
+envlock serve
+# → "Open http://127.0.0.1:3847/?token=xxx to add your keys"
+
+# Agent tells user the URL
+# User opens link, adds keys
+# Agent reads keys via:
+envlock get OPENAI_API_KEY --raw
+```
+
+### Claude Code
+
+```bash
+# Claude Code can install and use Envlock:
+npm install -g envlock
+
+# Initialize vault
+envlock init
+
+# Create slots for needed keys
+envlock create ANTHROPIC_API_KEY -d "Anthropic API key" -t api_key
+
+# Start web UI for user input
+envlock serve
+
+# Later, read keys programmatically
+envlock api get ANTHROPIC_API_KEY --json
+```
+
+### Cursor / Windsurf / Any AI Agent
+
+```bash
+# Any AI agent can use the JSON API
+envlock api list --json
+envlock api get KEY_NAME --json
+envlock api create NEW_KEY --json
+envlock api set NEW_KEY --json
+envlock api export --json
+```
+
+### Agent API Reference
+
+All agent API calls return JSON and support `--json` flag:
+
+```bash
+# List all secrets
+envlock api list --json
+# → {"success": true, "slots": [{"name": "OPENAI_API_KEY", "type": "api_key", ...}]}
+
+# Get a specific secret
+envlock api get OPENAI_API_KEY --json
+# → {"success": true, "slot": "OPENAI_API_KEY", "value": "sk-..."}
+
+# Create a new slot
+envlock api create NEW_KEY --json
+# → {"success": true, "slot": "NEW_KEY"}
+
+# Set a value
+envlock api set NEW_KEY --json
+# → {"success": true, "slot": "NEW_KEY"}
+
+# Export all secrets as env vars
+envlock api export --json
+# → {"success": true, "secrets": {"KEY1": "val1", "KEY2": "val2"}}
+
+# Check vault status
+envlock api status --json
+# → {"success": true, "initialized": true, "locked": false, "slots": 5}
+```
+
+### Agent Permissions
+
+When registering agents, you can set granular permissions:
+
+```bash
+# Register with specific permissions
+envlock api register --json
+# Permissions: read, list, write, create, delete, execute
+
+# Scoped access — agent only sees specific slots
+envlock api register --json
+# allowedSlots: ["OPENAI_API_KEY", "STRIPE_KEY"]
 ```
 
 ---
 
 ## 🌐 Web UI
 
-The killer feature — **spin up a local web page** for users to input secrets:
+The web UI is the **killer feature** — users paste secrets in a clean browser form instead of chat.
 
 ```bash
 envlock serve
@@ -91,7 +234,7 @@ envlock serve
 
   Open this URL in your browser:
 
-  http://127.0.0.1:3847/token=abc123...
+  http://127.0.0.1:3847/?token=abc123def456...
 
   ─────────────────────────────────────
   This URL contains your access token.
@@ -100,107 +243,181 @@ envlock serve
   Press Ctrl+C to stop.
 ```
 
-**Web UI features:**
-- 🎨 Clean, dark-themed UI (not generic AI slop)
-- 📋 Service templates — pick OpenAI, Stripe, Discord, etc.
-- 📝 Bulk add — paste multiple secrets at once
-- 📥 Import .env — paste your existing .env file
-- 🔐 All data encrypted immediately, never leaves localhost
+### Web UI Features
+
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Clean Dark UI** | Purple-themed, minimal, not generic AI slop |
+| 📋 **46 Templates** | Pick OpenAI, Stripe, Discord, AWS, etc. |
+| 📝 **Bulk Add** | Paste multiple `NAME=value` pairs at once |
+| 📥 **Import .env** | Paste your existing `.env` file |
+| 🔐 **Encrypted** | All data encrypted immediately |
+| 🏠 **Localhost Only** | Never exposed to the internet |
+| 🔑 **Token Protected** | URL contains one-time access token |
+
+### Web UI Screenshots
+
+**Dashboard:**
+```
+┌──────────────────────────────────────────────┐
+│  🔐 Envlock          5 secrets    [+ Add]    │
+├──────────────────────────────────────────────┤
+│  Your Secrets                                │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │ 🔑      │ │ 🎫      │ │ 🔒      │        │
+│  │ OPENAI  │ │ STRIPE  │ │ DB_URL  │        │
+│  │ ✅ Set  │ │ ✅ Set  │ │ ✅ Set  │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
+│                                              │
+│  Add by Service                              │
+│  🤖 AI & Machine Learning                    │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐           │
+│  │OpenAI│ │Anthro│ │Gemini│ │ HF  │           │
+│  └─────┘ └─────┘ └─────┘ └─────┘           │
+│  📱 Social Media                             │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐           │
+│  │Twittr│ │Discrd│ │Telegr│ │Slack│           │
+│  └─────┘ └─────┘ └─────┘ └─────┘           │
+└──────────────────────────────────────────────┘
+```
+
+**Add Secret Form (e.g., OpenAI):**
+```
+┌──────────────────────────────────────────────┐
+│  ← Back        🤖 OpenAI                     │
+├──────────────────────────────────────────────┤
+│                                              │
+│  API Key *                                   │
+│  ┌──────────────────────────────────────┐    │
+│  │ sk-...                          👁️  │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│  Organization ID                             │
+│  ┌──────────────────────────────────────┐    │
+│  │ org-...                             │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│  ┌──────────────────────────────────────┐    │
+│  │        🔐 Save Securely              │    │
+│  └──────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘
+```
 
 ---
 
-## 📦 40+ Service Templates
+## 📦 46 Service Templates
 
-Pre-built forms so users don't have to figure out field names:
+Pre-built forms so users don't have to figure out field names. Agents can use templates programmatically:
 
-### 🤖 AI & Machine Learning
-| Template | Fields |
-|----------|--------|
-| `openai` | API Key, Org ID |
-| `anthropic` | API Key |
-| `google-ai` | API Key |
-| `huggingface` | Access Token |
-| `replicate` | API Token |
+```bash
+# List all templates
+envlock templates
 
-### 📱 Social Media
-| Template | Fields |
-|----------|--------|
-| `twitter` | API Key, Secret, Access Token, Bearer Token |
-| `discord` | Bot Token, Client ID, Secret |
-| `telegram` | Bot Token, Chat ID |
-| `slack` | Bot Token, App Token, Webhook |
-| `instagram` | Username, Password, Access Token |
-| `facebook` | Access Token, App ID, Secret |
-| `linkedin` | Access Token, Client ID, Secret |
-| `youtube` | API Key, OAuth credentials |
-| `tiktok` | Access Token, Client Key, Secret |
-| `reddit` | Client ID, Secret, credentials |
-| `pinterest` | Access Token, App ID |
+# List by category
+envlock templates -c social
 
-### ☁️ Cloud & Infrastructure
-| Template | Fields |
-|----------|--------|
-| `aws` | Access Key ID, Secret, Region, Session Token |
-| `gcp` | Project ID, Service Account JSON |
-| `azure` | Client ID, Secret, Tenant, Subscription |
-| `vercel` | API Token |
-| `netlify` | Auth Token |
-| `digitalocean` | API Token |
-| `flyio` | API Token |
+# Use a template interactively
+envlock from-template openai
 
-### 🗄️ Databases
-| Template | Fields |
-|----------|--------|
-| `postgres` | Connection URL + individual fields |
-| `mysql` | Connection URL + individual fields |
-| `mongodb` | Connection URI |
-| `redis` | Connection URL |
-| `firebase` | API Key, Auth Domain, Project ID |
-| `supabase` | URL, Anon Key, Service Key |
+# Use via web UI
+# → http://127.0.0.1:PORT/add?template=openai&token=xxx
+```
 
-### 💳 Payments
-| Template | Fields |
-|----------|--------|
-| `stripe` | Secret Key, Publishable Key, Webhook Secret |
-| `paypal` | Client ID, Secret, Mode |
+### 🤖 AI & Machine Learning (5)
+| ID | Service | Fields |
+|----|---------|--------|
+| `openai` | OpenAI | API Key, Org ID |
+| `anthropic` | Anthropic (Claude) | API Key |
+| `google-ai` | Google AI (Gemini) | API Key |
+| `huggingface` | Hugging Face | Access Token |
+| `replicate` | Replicate | API Token |
 
-### 📧 Email & Communication
-| Template | Fields |
-|----------|--------|
-| `sendgrid` | API Key |
-| `mailgun` | API Key, Domain |
-| `twilio` | Account SID, Auth Token, Phone |
+### 📱 Social Media (11)
+| ID | Service | Fields |
+|----|---------|--------|
+| `twitter` | Twitter / X | API Key, API Secret, Access Token, Access Secret, Bearer Token |
+| `discord` | Discord | Bot Token, Client ID, Client Secret |
+| `telegram` | Telegram | Bot Token, Chat ID |
+| `slack` | Slack | Bot Token, App Token, Webhook URL |
+| `instagram` | Instagram | Username, Password, Access Token |
+| `facebook` | Facebook / Meta | Access Token, App ID, App Secret |
+| `linkedin` | LinkedIn | Access Token, Client ID, Client Secret |
+| `youtube` | YouTube / Google | API Key, Client ID, Client Secret, Refresh Token |
+| `tiktok` | TikTok | Access Token, Client Key, Client Secret |
+| `reddit` | Reddit | Client ID, Client Secret, Username, Password |
+| `pinterest` | Pinterest | Access Token, App ID |
 
-### 📊 Monitoring
-| Template | Fields |
-|----------|--------|
-| `datadog` | API Key, App Key |
-| `sentry` | DSN, Auth Token |
-| `newrelic` | License Key, App Name |
+### 🛠️ Developer Tools (1)
+| ID | Service | Fields |
+|----|---------|--------|
+| `github` | GitHub | Personal Access Token, Username |
 
-### 🚀 DevOps
-| Template | Fields |
-|----------|--------|
-| `docker` | Username, Password |
-| `npm` | Access Token |
+### ☁️ Cloud & Infrastructure (7)
+| ID | Service | Fields |
+|----|---------|--------|
+| `aws` | AWS | Access Key ID, Secret Access Key, Region, Session Token |
+| `gcp` | Google Cloud | Project ID, Service Account JSON |
+| `azure` | Azure | Client ID, Client Secret, Tenant ID, Subscription ID |
+| `vercel` | Vercel | API Token |
+| `netlify` | Netlify | Auth Token |
+| `digitalocean` | DigitalOcean | API Token |
+| `flyio` | Fly.io | API Token |
 
-### 🛡️ Network
-| Template | Fields |
-|----------|--------|
-| `vpn` | Server, Username, Password, Config |
-| `ssh` | Host, Username, Private Key, Passphrase |
+### 🗄️ Databases (6)
+| ID | Service | Fields |
+|----|---------|--------|
+| `postgres` | PostgreSQL | Connection URL, Host, Port, User, Password, Database |
+| `mysql` | MySQL | Connection URL, Host, User, Password, Database |
+| `mongodb` | MongoDB | Connection URI |
+| `redis` | Redis | Connection URL |
+| `firebase` | Firebase | API Key, Auth Domain, Project ID, Service Account |
+| `supabase` | Supabase | Project URL, Anon Key, Service Role Key |
 
-### 🔧 Custom
-| Template | Fields |
-|----------|--------|
-| `api-key` | API Key, Secret, Base URL |
-| `oauth` | Client ID, Secret, Redirect URI, Tokens |
-| `basic-auth` | Username, Password |
-| `bearer-token` | Bearer Token, Base URL |
+### 💳 Payments (2)
+| ID | Service | Fields |
+|----|---------|--------|
+| `stripe` | Stripe | Secret Key, Publishable Key, Webhook Secret |
+| `paypal` | PayPal | Client ID, Client Secret, Mode |
+
+### 📧 Email & Communication (3)
+| ID | Service | Fields |
+|----|---------|--------|
+| `sendgrid` | SendGrid | API Key |
+| `mailgun` | Mailgun | API Key, Domain |
+| `twilio` | Twilio | Account SID, Auth Token, Phone Number |
+
+### 📊 Analytics & Monitoring (3)
+| ID | Service | Fields |
+|----|---------|--------|
+| `datadog` | Datadog | API Key, Application Key |
+| `sentry` | Sentry | DSN, Auth Token |
+| `newrelic` | New Relic | License Key, App Name |
+
+### 🚀 DevOps & CI/CD (2)
+| ID | Service | Fields |
+|----|---------|--------|
+| `docker` | Docker Hub | Username, Password |
+| `npm` | npm | Access Token |
+
+### 🛡️ VPN & Network (2)
+| ID | Service | Fields |
+|----|---------|--------|
+| `vpn` | VPN Credentials | Server, Username, Password, Config |
+| `ssh` | SSH Key | Host, Username, Private Key, Passphrase |
+
+### 🔧 Custom / Generic (4)
+| ID | Service | Fields |
+|----|---------|--------|
+| `api-key` | Generic API Key | API Key, API Secret, Base URL |
+| `oauth` | OAuth Credentials | Client ID, Client Secret, Redirect URI, Access Token, Refresh Token |
+| `basic-auth` | Username & Password | Username, Password |
+| `bearer-token` | Bearer Token | Token, Base URL |
 
 ---
 
-## 📋 All Commands
+## 📋 Commands
+
+### Core Vault
 
 | Command | Description |
 |---------|-------------|
@@ -208,62 +425,116 @@ Pre-built forms so users don't have to figure out field names:
 | `envlock create <name>` | Create a new secret slot |
 | `envlock set <name>` | Set value for a secret |
 | `envlock get <name>` | Retrieve a secret |
-| `envlock list` | List all secret slots |
 | `envlock delete <name>` | Delete a secret |
-| `envlock serve` | **🌐 Start web UI for users** |
-| `envlock templates` | **📋 List 40+ service templates** |
-| `envlock from-template <id>` | **➕ Add from template interactively** |
-| `envlock import-env <file>` | **📥 Import .env file** |
-| `envlock export` | Export secrets as env vars |
-| `envlock inject <cmd>` | Run command with secrets injected |
-| `envlock api <method>` | Agent API (JSON in/out) |
-| `envlock audit` | View audit log |
-| `envlock config` | View/set configuration |
-| `envlock lock` | Lock the vault |
-| `envlock unlock` | Unlock the vault |
-| `envlock rotate` | Change master password |
-| `envlock share <name>` | Create shareable encrypted bundle |
-| `envlock import <bundle>` | Import an encrypted bundle |
+| `envlock list` | List all secret slots |
 | `envlock status` | Show vault status |
 
----
+### Web UI & Templates
 
-## 🤖 Agent API
+| Command | Description |
+|---------|-------------|
+| `envlock serve` | 🌐 Start web UI for users to input secrets |
+| `envlock templates` | 📋 List 46 service templates |
+| `envlock from-template <id>` | ➕ Add credentials from a template |
+| `envlock import-env <file>` | 📥 Import secrets from a .env file |
 
-AI agents interact with Envlock programmatically:
+### Generation & Analysis
 
-```bash
-# List all secrets
-envlock api list --json
+| Command | Description |
+|---------|-------------|
+| `envlock generate` | 🔐 Generate passwords, API keys, tokens, UUIDs |
+| `envlock strength [pwd]` | 💪 Analyze password strength |
+| `envlock health [name]` | 🏥 Check credential format validity |
 
-# Get a specific secret
-envlock api get OPENAI_API_KEY --json
+### Organization
 
-# Create and set in one call
-envlock api create NEW_KEY --json
-envlock api set NEW_KEY --json
+| Command | Description |
+|---------|-------------|
+| `envlock search <query>` | 🔍 Search secrets by name, description, or tags |
+| `envlock tag <name> <tags>` | 🏷️ Add tags to a secret |
+| `envlock fav <name>` | ⭐ Toggle favorite status |
+| `envlock history [name]` | 📜 View change history |
+| `envlock profiles` | 📁 Manage environment profiles (dev/staging/prod) |
 
-# Export all secrets as env vars
-envlock api export --json
+### Security & Sharing
 
-# Register an agent with permissions
-envlock api register --json
+| Command | Description |
+|---------|-------------|
+| `envlock lock` | 🔒 Lock the vault |
+| `envlock unlock` | 🔓 Unlock the vault |
+| `envlock rotate` | 🔄 Change master password |
+| `envlock backup` | 💾 Create encrypted backup |
+| `envlock restore <id>` | ♻️ Restore from backup |
+| `envlock backups` | 📋 List backups |
+| `envlock share <name>` | 🔗 Create shareable encrypted bundle |
+| `envlock import <bundle>` | 📥 Import encrypted bundle |
 
-# Run a command with secrets injected
-envlock api inject node app.js --json
-```
+### Export & Injection
+
+| Command | Description |
+|---------|-------------|
+| `envlock export` | Export secrets as env vars (shell/dotenv/docker/json) |
+| `envlock inject <cmd>` | Run a command with secrets injected |
+| `envlock api <method>` | 🤖 Agent API (JSON in/out) |
+
+### System
+
+| Command | Description |
+|---------|-------------|
+| `envlock audit` | 📋 View audit log |
+| `envlock config` | ⚙️ View/set configuration |
 
 ---
 
 ## 🔒 Security
 
-- **AES-256 encryption** via CryptoJS
-- **PBKDF2 key derivation** (100,000 iterations)
-- **Local-only storage** — nothing leaves your machine
-- **File permissions** — vault files are `0600` (owner-only)
-- **Auto-expiry** — set secrets to expire after N seconds
-- **Audit log** — every access is logged with timestamp
-- **Web UI** — localhost only, token-protected, no external exposure
+### Encryption
+
+| Layer | Algorithm | Details |
+|-------|-----------|---------|
+| **Vault** | AES-256-CBC | All secrets encrypted at rest |
+| **Key Derivation** | PBKDF2 | 100,000 iterations, SHA-256 |
+| **File Permissions** | `0600` | Owner-only read/write |
+| **Web UI** | Token-protected | One-time access token in URL |
+| **Network** | Localhost only | Never exposed to internet |
+
+### What Gets Stored
+
+```
+~/.envlock/
+├── vault.enc           # 🔐 Your encrypted secrets
+├── slots.enc           # 🔐 Slot metadata (names, types, tags)
+├── meta.json           # 📋 Vault metadata
+├── config.json         # ⚙️ Configuration
+├── audit.json          # 📋 Audit log
+├── agents.json         # 🤖 Registered agents
+├── agent-requests.json # 📝 Pending access requests
+├── profiles/           # 📁 Environment profiles
+├── history/            # 📜 Change history
+└── backups/            # 💾 Encrypted backups
+```
+
+### Audit Log
+
+Every action is logged with timestamp and details:
+
+```bash
+envlock audit
+```
+
+```
+📋 Envlock Audit Log:
+
+┌─────────────────────────────┬─────────────────┬───────────────────┐
+│ Time                        │ Event           │ Details           │
+├─────────────────────────────┼─────────────────┼───────────────────┤
+│ 5/2/2026, 4:30:00 AM       │ vault_init      │ -                 │
+│ 5/2/2026, 4:30:05 AM       │ slot_created    │ {"name":"OPENAI"} │
+│ 5/2/2026, 4:30:10 AM       │ secret_set      │ {"name":"OPENAI"} │
+│ 5/2/2026, 4:31:00 AM       │ secret_accessed │ {"name":"OPENAI"} │
+│ 5/2/2026, 4:32:00 AM       │ webui_started   │ {"port":3847}     │
+└─────────────────────────────┴─────────────────┴───────────────────┘
+```
 
 ---
 
@@ -273,18 +544,103 @@ envlock api inject node app.js --json
 # Shell
 envlock export --format shell
 export OPENAI_API_KEY="sk-..."
+export STRIPE_SECRET_KEY="sk_live_..."
 
 # dotenv
 envlock export --format dotenv
 OPENAI_API_KEY="sk-..."
+STRIPE_SECRET_KEY="sk_live_..."
 
 # Docker
 envlock export --format docker
--e OPENAI_API_KEY="sk-..."
+-e OPENAI_API_KEY="sk-..." -e STRIPE_SECRET_KEY="sk_live_..."
 
 # JSON
 envlock export --format json
-{"OPENAI_API_KEY": "sk-..."}
+{"OPENAI_API_KEY": "sk-...", "STRIPE_SECRET_KEY": "sk_live_..."}
+```
+
+### Inject into Commands
+
+```bash
+# Run any command with secrets as env vars
+envlock inject node app.js
+envlock inject python main.py
+envlock inject docker compose up
+```
+
+---
+
+## 🔐 Password Generator
+
+Generate secure passwords, API keys, tokens, and UUIDs:
+
+```bash
+# Generate a password
+envlock generate --type password --length 32
+
+# Generate an API key with prefix
+envlock generate --type apikey --prefix sk
+
+# Generate a token
+envlock generate --type token --length 64
+
+# Generate a UUID
+envlock generate --type uuid
+
+# Generate and save directly
+envlock generate --type password --length 24 --save MY_PASSWORD
+
+# Analyze password strength
+envlock strength "MyP@ssw0rd!"
+# → Score: 🔐 Excellent
+# → Entropy: ~72 bits
+# → Length: 12 chars
+```
+
+---
+
+## 📁 Environment Profiles
+
+Manage separate secrets for different environments:
+
+```bash
+# Create profiles
+envlock profiles --create dev
+envlock profiles --create staging
+envlock profiles --create prod
+
+# List profiles
+envlock profiles
+
+# Compare profiles
+envlock profiles --diff dev,prod
+```
+
+---
+
+## 🏥 Health Checks
+
+Validate that your credentials are correctly formatted:
+
+```bash
+# Check all secrets
+envlock health
+
+# Check a specific secret
+envlock health OPENAI_API_KEY
+```
+
+```
+🏥 Credential Health Check:
+
+┌────────────────────┬──────────┬──────────┐
+│ Secret             │ Format   │ Details  │
+├────────────────────┼──────────┼──────────┤
+│ OPENAI_API_KEY     │ ✅ Valid │ OpenAI   │
+│ GITHUB_TOKEN       │ ✅ Valid │ GitHub   │
+│ SHORT_KEY          │ ⚠️ Check │ Too short│
+└────────────────────┴──────────┴──────────┘
 ```
 
 ---
@@ -292,15 +648,38 @@ envlock export --format json
 ## 🏗️ Architecture
 
 ```
-~/.envlock/
-├── vault.enc           # Encrypted secrets (AES-256)
-├── slots.enc           # Encrypted slot metadata
-├── meta.json           # Vault metadata
-├── config.json         # Configuration
-├── audit.json          # Audit log
-├── agents.json         # Registered agents
-└── agent-requests.json # Pending access requests
+envlock/
+├── src/
+│   ├── index.js              # Main CLI (33 commands)
+│   └── lib/
+│       ├── vault.js          # 🔐 Core encrypted vault
+│       ├── agent-bridge.js   # 🤖 Agent API system
+│       ├── web-ui.js         # 🌐 Web server + UI
+│       ├── templates.js      # 📦 46 service templates
+│       ├── password-gen.js   # 🔐 Password generator
+│       ├── profiles.js       # 📁 Environment profiles
+│       ├── history.js        # 📜 Change history
+│       ├── health-check.js   # 🏥 Credential validation
+│       ├── backup.js         # 💾 Backup/restore
+│       ├── audit.js          # 📋 Audit logging
+│       ├── config.js         # ⚙️ Configuration
+│       └── logo.js           # 🎨 ASCII art
+├── tests/
+│   └── test.js               # ✅ 42 tests
+├── README.md
+├── LICENSE                   # MIT
+└── package.json
 ```
+
+---
+
+## 🤝 Contributing
+
+1. Fork it
+2. Create your branch (`git checkout -b feature/awesome`)
+3. Commit (`git commit -m 'Add awesome feature'`)
+4. Push (`git push origin feature/awesome`)
+5. Open a PR
 
 ---
 
@@ -310,4 +689,12 @@ MIT © [Envlock Contributors](https://github.com/envlock/envlock)
 
 ---
 
-**Built with 💜 by John & Neo**
+<p align="center">
+  <strong>Built with 💜 by John & Neo</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/envlock/envlock">GitHub</a> •
+  <a href="https://www.npmjs.com/package/envlock">npm</a> •
+  <a href="#-quick-start">Quick Start</a>
+</p>
