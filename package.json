@@ -1,7 +1,7 @@
 {
   "name": "envlock",
   "version": "1.0.0",
-  "description": "🔐 Envlock — Secure credential vault for AI agents. Store, manage, and inject API keys without exposing them in chat.",
+  "description": "\ud83d\udd10 Envlock \u2014 Secure credential vault for AI agents. Store, manage, and inject API keys without exposing them in chat.",
   "main": "src/index.js",
   "bin": {
     "envlock": "./src/index.js",
@@ -40,6 +40,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/envlock/envlock"
+    "url": "git+https://github.com/Atum246/envlock.git"
   }
 }
