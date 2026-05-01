@@ -81,28 +81,50 @@ User → [pastes key in web form] → Encrypted Vault → AI Agent → External 
 
 ## ⚡ Quick Start
 
-### For AI Agents (Primary Use Case)
-
-AI agents install and manage Envlock themselves. Users only interact through the web UI.
+### Step 1: Install (AI Agent does this)
 
 ```bash
-# 1. AI Agent installs Envlock
-npm install -g envlock
+npm install -g @adewale0o/envlock
+```
 
-# 2. Agent initializes the vault
+### Step 2: Initialize (AI Agent does this)
+
+```bash
 envlock init
+# You'll set a master password. This encrypts everything.
+```
 
-# 3. Agent starts the web UI
+### Step 3: Start Web UI (AI Agent does this)
+
+**If agent and user are on the same computer:**
+```bash
 envlock serve
-
-# 4. Agent tells user: "Open this link to add your keys"
 # → http://127.0.0.1:3847/?token=abc123...
+```
 
-# 5. User opens link, picks a service, pastes key
-# → Key stored in encrypted vault (never in chat!)
+**If agent is on a server and user is on a different device:**
+```bash
+envlock serve --expose
+# → http://192.168.1.100:3847/?token=abc123...
+```
 
-# 6. Agent reads the key when needed
+### Step 4: User Opens Link (User does this)
+
+The agent tells the user: *"Open this link to add your API keys"*
+
+The user:
+1. Opens the URL in their browser
+2. Sees a clean form with service templates (OpenAI, Stripe, Discord, etc.)
+3. Picks the service they want
+4. Pastes their API key into the form
+5. Clicks "Save Securely"
+6. Done! Key is encrypted in the vault. Never touched chat.
+
+### Step 5: Agent Reads Keys (AI Agent does this)
+
+```bash
 envlock get OPENAI_API_KEY
+# → sk-1234567890...
 ```
 
 ### The Complete Flow
@@ -221,27 +243,125 @@ envlock api register --json
 
 ---
 
-## 🌐 Web UI
+## 🌐 Web UI — The Core Feature
 
-The web UI is the **killer feature** — users paste secrets in a clean browser form instead of chat.
+The web UI is **why Envlock exists** — instead of pasting API keys into chat (where they get logged, stored, and potentially leaked), users paste them into a **clean web form** that goes straight into an encrypted vault.
+
+```
+❌ DON'T DO THIS:
+User: "here's my API key: sk-1234567890..."
+→ Key is now in chat history, logs, training data
+
+✅ DO THIS INSTEAD:
+Agent: "Open http://127.0.0.1:3847/?token=xxx to add your keys"
+User: *opens link, picks OpenAI, pastes key in form*
+→ Key goes directly into encrypted vault. Never in chat.
+```
+
+---
+
+### Two Modes — Which One Do I Use?
+
+#### Mode 1: Localhost (Default)
 
 ```bash
 envlock serve
 ```
 
 ```
-🌐 Envlock Web UI is running!
-
-  Open this URL in your browser:
-
-  http://127.0.0.1:3847/?token=abc123def456...
-
-  ─────────────────────────────────────
-  This URL contains your access token.
-  Share it only with trusted users.
-  The server runs on localhost only.
-  Press Ctrl+C to stop.
+Your Computer
+┌──────────────────────────────┐
+│  AI Agent (OpenClaw, etc.)   │
+│         ↓                    │
+│  Envlock Vault (encrypted)   │
+│         ↓                    │
+│  Web UI at 127.0.0.1:3847   │◄── Only accessible from THIS machine
+└──────────────────────────────┘
 ```
+
+**When to use:**
+- ✅ AI agent runs on YOUR computer (Cursor, Claude Code desktop, OpenClaw local)
+- ✅ You open the browser on the SAME machine
+- ✅ Most secure — nothing leaves your computer
+
+**How it works:**
+1. Agent runs `envlock serve`
+2. Agent gives you the URL: `http://127.0.0.1:3847/?token=abc123`
+3. You open that URL in your browser ON THE SAME COMPUTER
+4. You see the form, pick a service, paste your key
+5. Key is encrypted and stored locally
+6. Agent reads it when needed
+
+**Who can access:** Only you, from the same machine. Nobody else can reach `127.0.0.1`.
+
+---
+
+#### Mode 2: Network Exposed (`--expose`)
+
+```bash
+envlock serve --expose
+```
+
+```
+Your VPS/Server                    Your Laptop/Phone
+┌──────────────────────┐          ┌──────────────┐
+│  AI Agent            │          │  Browser     │
+│         ↓            │          │              │
+│  Envlock Vault       │◄─────────│  You open    │
+│         ↓            │ network  │  the URL     │
+│  Web UI at           │          │              │
+│  0.0.0.0:3847        │          └──────────────┘
+└──────────────────────┘
+```
+
+**When to use:**
+- ✅ AI agent runs on a VPS/cloud server (DigitalOcean, AWS, etc.)
+- ✅ You want to add keys from your laptop or phone
+- ✅ You're on the same WiFi/LAN network as the server
+
+**How it works:**
+1. Agent runs `envlock serve --expose` on the server
+2. Agent gives you the URL: `http://192.168.1.100:3847/?token=abc123`
+3. You open that URL from ANY device on the same network
+4. You see the form, pick a service, paste your key
+5. Key is encrypted and stored on the server
+6. Agent reads it when needed
+
+**Who can access:** Anyone on the same network who has the token URL. The token is required — without it, you just see a "enter token" page.
+
+---
+
+### Quick Decision Guide
+
+| Your Setup | Command | Why |
+|------------|---------|-----|
+| Agent on my laptop, I use my laptop | `envlock serve` | Same machine = localhost is enough |
+| Agent on a VPS, I use my laptop | `envlock serve --expose` | Different machines = need network access |
+| Agent on a VPS, I'm on the internet | `envlock serve --expose` + firewall/port forward | Need to open port on your VPS |
+| Just me, just testing | `envlock serve` | Simplest option |
+
+---
+
+### Security — Is This Safe?
+
+**Yes.** Here's why:
+
+| Layer | Protection |
+|-------|-----------|
+| 🔑 **Token auth** | URL contains a random 32-char token. No token = no access |
+| 🏠 **Localhost default** | Only exposed to the internet if YOU choose `--expose` |
+| 🔐 **Encrypted** | All secrets are AES-256 encrypted on disk |
+| 🚫 **No chat** | Keys never enter conversation history |
+| 📋 **Audit log** | Every access is logged with timestamp |
+| ⏰ **One-time token** | Token changes each time you restart `envlock serve` |
+
+**Even with `--expose`:**
+- The server only listens on your local network (LAN), not the internet
+- A random token is required for every request
+- Without the token, you see nothing useful
+- The token changes every restart
+
+---
 
 ### Web UI Features
 
@@ -252,10 +372,9 @@ envlock serve
 | 📝 **Bulk Add** | Paste multiple `NAME=value` pairs at once |
 | 📥 **Import .env** | Paste your existing `.env` file |
 | 🔐 **Encrypted** | All data encrypted immediately |
-| 🏠 **Localhost Only** | Never exposed to the internet |
 | 🔑 **Token Protected** | URL contains one-time access token |
 
-### Web UI Screenshots
+### What Users See
 
 **Dashboard:**
 ```
