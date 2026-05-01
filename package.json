@@ -1,5 +1,5 @@
 {
-  "name": "envlock",
+  "name": "@adewale0o/envlock",
   "version": "1.0.0",
   "description": "\ud83d\udd10 Envlock \u2014 Secure credential vault for AI agents. Store, manage, and inject API keys without exposing them in chat.",
   "main": "src/index.js",
