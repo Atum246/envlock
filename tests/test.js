@@ -11,13 +11,35 @@ const path = require('path');
 
 // Test cleanup
 const testDir = path.join(os.homedir(), '.envlock-test');
+const realEnvlockDir = path.join(os.homedir(), '.envlock');
 
 function cleanup() {
   try {
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
-  } catch {}
+    // Clean up test artifacts from real envlock dir
+    const profilesDir = path.join(realEnvlockDir, 'profiles');
+    const historyDir = path.join(realEnvlockDir, 'history');
+    const backupsDir = path.join(realEnvlockDir, 'backups');
+
+    // Remove test profiles
+    if (fs.existsSync(profilesDir)) {
+      ['dev', 'prod', 'p1', 'p2', 'test-prof'].forEach(id => {
+        const f = path.join(profilesDir, `${id}.json`);
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      });
+    }
+    // Remove test history
+    if (fs.existsSync(historyDir)) {
+      ['TEST_KEY', 'KEY_A', 'KEY_B', 'CLEAR_TEST'].forEach(name => {
+        const f = path.join(historyDir, `${name}.json`);
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      });
+    }
+  } catch (e) {
+    // ignore cleanup errors
+  }
 }
 
 function setup() {

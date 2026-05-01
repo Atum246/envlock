@@ -17,24 +17,55 @@ class WebUI {
   }
 
   // ─── Start Server ───────────────────────────────────────────
-  start(port = 0) {
+  start(port = 0, opts = {}) {
     return new Promise((resolve, reject) => {
       // Generate a one-time access token
       this._token = crypto.randomBytes(32).toString('hex');
+      this._expose = opts.expose || false;
 
       this._server = http.createServer((req, res) => this._handleRequest(req, res));
 
-      this._server.listen(port, '127.0.0.1', () => {
+      // Bind to 0.0.0.0 if exposed, otherwise localhost only
+      const bindAddr = this._expose ? '0.0.0.0' : '127.0.0.1';
+
+      this._server.listen(port, bindAddr, () => {
         this._port = this._server.address().port;
+
+        // Get the actual accessible URL
+        let displayUrl;
+        if (this._expose) {
+          // Try to get the machine's IP for display
+          const ip = this._getLocalIP();
+          displayUrl = `http://${ip}:${this._port}`;
+        } else {
+          displayUrl = `http://127.0.0.1:${this._port}`;
+        }
+
         resolve({
-          url: `http://127.0.0.1:${this._port}`,
+          url: displayUrl,
+          localhostUrl: `http://127.0.0.1:${this._port}`,
           token: this._token,
-          fullUrl: `http://127.0.0.1:${this._port}/?token=${this._token}`
+          fullUrl: `${displayUrl}/?token=${this._token}`,
+          exposed: this._expose
         });
       });
 
       this._server.on('error', reject);
     });
+  }
+
+  // ─── Get Local Network IP ───────────────────────────────────
+  _getLocalIP() {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return '0.0.0.0';
   }
 
   stop() {

@@ -646,21 +646,34 @@ program
   .command('serve')
   .description('Start web UI for users to input secrets via browser')
   .option('-p, --port <port>', 'Port to listen on (default: random)')
+  .option('--expose', 'Expose to local network (not just localhost)')
   .option('--no-open', 'Don\'t auto-open browser')
   .action(async (opts) => {
     ensureVault();
     const port = opts.port ? parseInt(opts.port) : 0;
 
-    const info = await webui.start(port);
-    audit.log('webui_started', { port: info.port });
+    const info = await webui.start(port, { expose: opts.expose });
+    audit.log('webui_started', { port: info.port, exposed: !!opts.expose });
 
     console.log(chalk.hex('#9b59b6').bold('\n🌐 Envlock Web UI is running!\n'));
-    console.log(chalk.white('  Open this URL in your browser:\n'));
-    console.log(chalk.green.bold(`  ${info.fullUrl}\n`));
-    console.log(chalk.gray('  ─────────────────────────────────────'));
-    console.log(chalk.gray('  This URL contains your access token.'));
-    console.log(chalk.gray('  Share it only with trusted users.'));
-    console.log(chalk.gray('  The server runs on localhost only.'));
+
+    if (info.exposed) {
+      console.log(chalk.white('  📡 Accessible from your local network:\n'));
+      console.log(chalk.green.bold(`  ${info.fullUrl}\n`));
+      console.log(chalk.white('  🏠 Or from this machine:\n'));
+      console.log(chalk.green.bold(`  ${info.localhostUrl}/?token=${info.token}\n`));
+      console.log(chalk.gray('  ─────────────────────────────────────'));
+      console.log(chalk.gray('  ⚠️  Exposed to local network — anyone on your'));
+      console.log(chalk.gray('  network can access with the token above.'));
+      console.log(chalk.gray('  The token is required to view or add secrets.'));
+    } else {
+      console.log(chalk.white('  Open this URL in your browser:\n'));
+      console.log(chalk.green.bold(`  ${info.fullUrl}\n`));
+      console.log(chalk.gray('  ─────────────────────────────────────'));
+      console.log(chalk.gray('  Localhost only — only accessible from this'));
+      console.log(chalk.gray('  machine. Use --expose for local network.'));
+    }
+
     console.log(chalk.gray('  Press Ctrl+C to stop.\n'));
 
     // Keep process alive
