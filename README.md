@@ -18,6 +18,7 @@
 </p>
 
 <p align="center">
+  <a href="https://atum246.github.io/envlock/">Website</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-for-ai-agents">For AI Agents</a> •
   <a href="#-web-ui">Web UI</a> •
@@ -761,6 +762,185 @@ envlock health OPENAI_API_KEY
 │ SHORT_KEY          │ ⚠️ Check │ Too short│
 └────────────────────┴──────────┴──────────┘
 ```
+
+---
+
+## 🔧 Technical Deep Dive — What's Happening in the Background
+
+### The Full Flow (Step by Step)
+
+When an AI agent uses Envlock, here's exactly what happens at each layer:
+
+#### 1. Installation
+
+```bash
+npm install -g @adewale0o/envlock
+```
+
+- npm downloads the package to your global `node_modules`
+- The `envlock` and `el` commands become available globally
+- No background services, no daemons, no system modifications
+- Everything runs on-demand when you invoke a command
+
+#### 2. Initialization (`envlock init`)
+
+```
+User enters master password
+         ↓
+PBKDF2 derives encryption key (100,000 iterations, SHA-256)
+         ↓
+Creates ~/.envlock/ directory (permissions: 0700)
+         ↓
+Creates vault.enc (AES-256 encrypted, permissions: 0600)
+         ↓
+Creates slots.enc (encrypted metadata, permissions: 0600)
+         ↓
+Creates meta.json, config.json, audit.json
+```
+
+**What's stored on disk:**
+- `~/.envlock/vault.enc` — Your secrets, encrypted with AES-256-CBC
+- `~/.envlock/slots.enc` — Slot metadata (names, types, tags), also encrypted
+- `~/.envlock/meta.json` — Vault creation date, version (not encrypted, no secrets)
+- `~/.envlock/config.json` — Your preferences (not encrypted, no secrets)
+- `~/.envlock/audit.json` — Access log (not encrypted, no secrets)
+
+#### 3. Web UI (`envlock serve`)
+
+```
+envlock serve
+      ↓
+Generates random 32-char access token
+      ↓
+Starts HTTP server on 127.0.0.1:RANDOM_PORT (or 0.0.0.0 with --expose)
+      ↓
+Serves HTML/CSS/JS directly from memory (no external dependencies)
+      ↓
+User opens URL with token in browser
+      ↓
+Token is validated on every request (query param or header)
+      ↓
+User fills form → POST /api/secret → encrypted immediately → saved to vault.enc
+      ↓
+Server runs until Ctrl+C
+```
+
+**The web server:**
+- Pure Node.js `http.createServer` — no Express, no frameworks
+- All HTML/CSS/JS is embedded in the source code (no external assets)
+- Token is required for every API request
+- Without token, user sees a "enter token" page
+- Server binds to localhost by default (127.0.0.1)
+- With `--expose`, binds to 0.0.0.0 (all network interfaces)
+- CORS headers set for local development
+- No WebSocket, no long-polling — simple HTTP request/response
+
+#### 4. Agent API (`envlock api`)
+
+```bash
+envlock api get OPENAI_API_KEY --json
+```
+
+```
+Agent calls: envlock api get OPENAI_API_KEY --json
+      ↓
+CLI loads vault.enc, decrypts with master key
+      ↓
+Finds slot OPENAI_API_KEY in slots
+      ↓
+Decrypts value from vault
+      ↓
+Outputs JSON: {"success": true, "slot": "OPENAI_API_KEY", "value": "sk-..."}
+      ↓
+Agent uses the value to call OpenAI API
+```
+
+**Agent permissions:**
+- Agents register with `envlock api register`
+- Each agent has: `permissions` (read/list/write/create/delete/execute)
+- Each agent has: `allowedSlots` (which secrets they can access, or `*` for all)
+- Rate limiting: max 1000 requests/hour per agent (configurable)
+- All access logged in audit.json
+
+#### 5. Encryption Details
+
+| Layer | Algorithm | Key Size | Details |
+|-------|-----------|----------|---------|
+| Key Derivation | PBKDF2 | 256-bit | 100,000 iterations, SHA-256 |
+| Vault Encryption | AES-256-CBC | 256-bit | Each value encrypted separately |
+| Backup Encryption | AES-256-CBC | 256-bit | Entire vault bundled and encrypted |
+| Share Bundles | AES-256-CBC | 256-bit | Single secret encrypted with bundle password |
+| Profile Export | AES-256-CBC | 256-bit | Profile data encrypted with password |
+
+**How encryption works:**
+1. You set a master password
+2. PBKDF2 turns that password into a 256-bit key (100,000 iterations)
+3. Every secret is individually encrypted with AES-256-CBC using that key
+4. The encrypted data is written to `vault.enc`
+5. Without the master password, the data is unreadable
+6. Even if someone steals `vault.enc`, they can't decrypt it without your password
+
+#### 6. Network Modes Explained
+
+**Localhost Mode (`envlock serve`):**
+```
+┌─────────────────────────────────┐
+│         Your Computer           │
+│                                 │
+│  ┌───────────┐  ┌───────────┐  │
+│  │ AI Agent  │  │ Browser   │  │
+│  │ (Node.js) │  │ (Chrome)  │  │
+│  └─────┬─────┘  └─────┬─────┘  │
+│        │              │         │
+│        └──────┬───────┘         │
+│               │                 │
+│        ┌──────▼──────┐         │
+│        │ Envlock     │         │
+│        │ 127.0.0.1   │         │
+│        └─────────────┘         │
+└─────────────────────────────────┘
+```
+- Server binds to `127.0.0.1` (loopback address)
+- Only processes on THIS machine can connect
+- Your phone, another computer, or the internet CANNOT reach it
+- This is the safest option
+
+**Network Mode (`envlock serve --expose`):**
+```
+┌──────────────────────┐         ┌──────────────────┐
+│    Your VPS/Server   │         │  Your Laptop     │
+│                      │         │                  │
+│  ┌──────────┐        │   LAN   │  ┌──────────┐   │
+│  │AI Agent  │        │  ◄───── │  │ Browser  │   │
+│  └────┬─────┘        │         │  └──────────┘   │
+│       │              │         │                  │
+│  ┌────▼──────┐       │         └──────────────────┘
+│  │Envlock   │       │
+│  │0.0.0.0   │       │
+│  └──────────┘       │
+└──────────────────────┘
+```
+- Server binds to `0.0.0.0` (all network interfaces)
+- Accessible from any device on the same network
+- "Same network" means: same WiFi, same LAN, same VPN, or same private cloud network
+- NOT accessible from the internet (unless you open ports on your firewall)
+- Token authentication still required
+
+**What "same network" actually means:**
+
+| Scenario | Same Network? | Works? |
+|----------|--------------|--------|
+| Laptop + phone on home WiFi | ✅ Yes | `--expose` works |
+| Two computers in same office | ✅ Yes | `--expose` works |
+| VPS + your laptop via VPN | ✅ Yes | `--expose` works |
+| Your laptop + friend's laptop (different houses) | ❌ No | Need tunnel or port forward |
+| Your laptop + random VPS on internet | ❌ No | Need firewall rule + port forward |
+
+**If you need internet access (advanced):**
+1. Open the port on your VPS firewall (e.g., `ufw allow 3847`)
+2. Use the VPS's public IP: `http://YOUR_VPS_IP:3847/?token=xxx`
+3. Or use a tunnel: `ngrok http 3847` (creates a temporary public URL)
+4. ⚠️ Only do this if you understand the security implications
 
 ---
 
