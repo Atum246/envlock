@@ -1,0 +1,45 @@
+{
+  "name": "envlock",
+  "version": "1.0.0",
+  "description": "🔐 Envlock — Secure credential vault for AI agents. Store, manage, and inject API keys without exposing them in chat.",
+  "main": "src/index.js",
+  "bin": {
+    "envlock": "./src/index.js",
+    "el": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node tests/test.js",
+    "start": "node src/index.js"
+  },
+  "keywords": [
+    "ai-agents",
+    "credentials",
+    "vault",
+    "security",
+    "api-keys",
+    "env",
+    "secrets",
+    "cli"
+  ],
+  "author": "John & Neo",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0",
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1",
+    "crypto-js": "^4.2.0",
+    "conf": "^10.2.0",
+    "cli-table3": "^0.6.3",
+    "gradient-string": "^2.0.2",
+    "boxen": "^5.1.2",
+    "clipboardy": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/envlock/envlock"
+  }
+}
