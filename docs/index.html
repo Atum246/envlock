@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Envlock — Secure Credential Vault for AI Agents</title>
+  <meta name="description" content="Stop pasting API keys into chat. Envlock is an encrypted vault that lets AI agents store and access credentials securely.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#06060a;--surface:#0c0c14;--border:#1a1a2e;
+      --purple:#9b59b6;--purple-light:#bb86fc;--purple-dark:#6c3483;
+      --text:#e0e0e0;--text-dim:#888;--text-bright:#fff;
+      --green:#2ecc71;--red:#e74c3c;--yellow:#f1c40f;
+      --mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+      --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+
+    /* ─── NAV ─────────────────────────────────── */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(6,6,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between}
+    .nav-brand{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.1rem;color:var(--text-bright);text-decoration:none}
+    .nav-brand span{background:linear-gradient(135deg,var(--purple),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .nav-links{display:flex;gap:1.5rem;align-items:center}
+    .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.875rem;font-weight:500;transition:color .15s}
+    .nav-links a:hover{color:var(--text-bright)}
+    .nav-cta{background:var(--purple);color:#fff!important;padding:.4rem 1rem;border-radius:6px;font-weight:600;font-size:.85rem}
+    .nav-cta:hover{background:var(--purple-dark)}
+    .hamburger{display:none;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer}
+
+    /* ─── HERO ────────────────────────────────── */
+    .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6rem 1.5rem 4rem;position:relative}
+    .hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(155,89,182,.08) 0%,transparent 70%);pointer-events:none}
+    .padlock-art{font-family:var(--mono);font-size:.7rem;line-height:1.2;color:var(--purple);white-space:pre;opacity:.6;margin-bottom:2rem;user-select:none}
+    .hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;line-height:1.05;margin-bottom:1rem}
+    .hero h1 .gradient{background:linear-gradient(135deg,var(--purple),var(--purple-light),#e0a0ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .hero p{font-size:clamp(1rem,2vw,1.25rem);color:var(--text-dim);max-width:560px;margin:0 auto 2.5rem}
+    .hero-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+    .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none;transition:all .15s;cursor:pointer;border:none}
+    .btn-primary{background:var(--purple);color:#fff}
+    .btn-primary:hover{background:var(--purple-dark);transform:translateY(-1px)}
+    .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .btn-ghost:hover{border-color:var(--purple);color:var(--text-bright)}
+    .install-cmd{font-family:var(--mono);font-size:.9rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--green);margin-top:1.5rem;display:inline-flex;align-items:center;gap:.75rem;cursor:pointer;transition:border-color .15s}
+    .install-cmd:hover{border-color:var(--purple)}
+    .install-cmd .copy{color:var(--text-dim);font-size:.75rem}
+
+    /* ─── PROBLEM ─────────────────────────────── */
+    .section{padding:5rem 1.5rem;max-width:960px;margin:0 auto}
+    .section-label{font-family:var(--mono);font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;color:var(--purple);margin-bottom:.75rem}
+    .section h2{font-size:clamp(1.75rem,4vw,2.5rem);font-weight:800;margin-bottom:1rem;color:var(--text-bright)}
+    .section p.subtitle{color:var(--text-dim);font-size:1.1rem;max-width:600px;margin-bottom:2.5rem}
+
+    .problem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+    .problem-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem;transition:border-color .15s}
+    .problem-card:hover{border-color:var(--red)}
+    .problem-card .icon{font-size:1.5rem;margin-bottom:.5rem}
+    .problem-card h3{font-size:1rem;font-weight:700;margin-bottom:.35rem;color:var(--text-bright)}
+    .problem-card p{font-size:.875rem;color:var(--text-dim)}
+
+    /* ─── HOW IT WORKS ────────────────────────── */
+    .flow{display:flex;flex-direction:column;gap:0;margin:2rem 0}
+    .flow-step{display:flex;align-items:flex-start;gap:1.25rem;position:relative;padding-bottom:2rem}
+    .flow-step:last-child{padding-bottom:0}
+    .flow-step::before{content:'';position:absolute;left:19px;top:40px;bottom:0;width:2px;background:var(--border)}
+    .flow-step:last-child::before{display:none}
+    .flow-num{width:40px;height:40px;border-radius:50%;background:var(--surface);border:2px solid var(--purple);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.875rem;color:var(--purple-light);flex-shrink:0}
+    .flow-content h3{font-size:1rem;font-weight:700;margin-bottom:.25rem;color:var(--text-bright)}
+    .flow-content p{font-size:.9rem;color:var(--text-dim)}
+    .flow-content code{font-family:var(--mono);font-size:.8rem;background:var(--surface);padding:.15rem .4rem;border-radius:4px;color:var(--green)}
+
+    /* ─── TERMINAL DEMO ───────────────────────── */
+    .terminal{background:#0a0a12;border:1px solid var(--border);border-radius:12px;overflow:hidden;max-width:680px;margin:2rem auto;font-family:var(--mono);font-size:.8rem}
+    .terminal-bar{background:var(--surface);padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border)}
+    .terminal-dot{width:10px;height:10px;border-radius:50%}
+    .terminal-dot.r{background:#ff5f57}.terminal-dot.y{background:#febc2e}.terminal-dot.g{background:#28c840}
+    .terminal-body{padding:1.25rem;line-height:1.8;overflow-x:auto}
+    .t-prompt{color:var(--purple-light)}.t-cmd{color:var(--text-bright)}.t-out{color:var(--text-dim)}.t-success{color:var(--green)}.t-url{color:#5dade2}.t-warn{color:var(--yellow)}
+
+    /* ─── MODES ───────────────────────────────── */
+    .modes-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:2rem}
+    .mode-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;position:relative;overflow:hidden}
+    .mode-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+    .mode-card.local::before{background:var(--green)}
+    .mode-card.network::before{background:var(--yellow)}
+    .mode-card h3{font-size:1.1rem;font-weight:800;margin-bottom:.5rem;color:var(--text-bright);display:flex;align-items:center;gap:.5rem}
+    .mode-card p{font-size:.875rem;color:var(--text-dim);margin-bottom:1rem}
+    .mode-card .cmd{font-family:var(--mono);font-size:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem;color:var(--green);margin-bottom:.75rem}
+    .mode-card ul{list-style:none;padding:0}
+    .mode-card li{font-size:.85rem;color:var(--text-dim);padding:.25rem 0;padding-left:1.25rem;position:relative}
+    .mode-card li::before{content:'→';position:absolute;left:0;color:var(--purple)}
+
+    /* ─── FEATURES ────────────────────────────── */
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:2rem}
+    .feat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem;text-align:center;transition:all .15s}
+    .feat:hover{border-color:var(--purple);transform:translateY(-2px)}
+    .feat .emoji{font-size:2rem;margin-bottom:.5rem}
+    .feat h3{font-size:.9rem;font-weight:700;margin-bottom:.25rem;color:var(--text-bright)}
+    .feat p{font-size:.8rem;color:var(--text-dim)}
+
+    /* ─── TEMPLATES ───────────────────────────── */
+    .template-cats{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
+    .template-cat{font-family:var(--mono);font-size:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.4rem .75rem;color:var(--text-dim);cursor:pointer;transition:all .15s}
+    .template-cat:hover,.template-cat.active{border-color:var(--purple);color:var(--purple-light)}
+    .template-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem}
+    .template-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.6rem;text-align:center;font-size:.8rem;color:var(--text-dim);transition:border-color .15s}
+    .template-item:hover{border-color:var(--purple)}
+    .template-item .t-icon{font-size:1.25rem;display:block;margin-bottom:.25rem}
+
+    /* ─── SECURITY ────────────────────────────── */
+    .security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:2rem}
+    .sec-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem}
+    .sec-card h3{font-size:.95rem;font-weight:700;margin-bottom:.35rem;color:var(--text-bright);display:flex;align-items:center;gap:.5rem}
+    .sec-card p{font-size:.85rem;color:var(--text-dim)}
+
+    /* ─── ARCHITECTURE ────────────────────────── */
+    .arch-diagram{font-family:var(--mono);font-size:.75rem;line-height:1.4;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;overflow-x:auto;white-space:pre;color:var(--text-dim);margin:2rem 0}
+
+    /* ─── GET STARTED ─────────────────────────── */
+    .getstarted{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:3rem 2rem;text-align:center;max-width:680px;margin:0 auto}
+    .getstarted h2{font-size:2rem;font-weight:900;margin-bottom:.5rem;color:var(--text-bright)}
+    .getstarted p{color:var(--text-dim);margin-bottom:1.5rem}
+    .steps{text-align:left;max-width:480px;margin:0 auto 2rem}
+    .steps .step{display:flex;gap:1rem;margin-bottom:1.25rem}
+    .steps .step-num{width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0}
+    .steps .step-text{font-size:.9rem;color:var(--text)}
+    .steps .step-text code{font-family:var(--mono);font-size:.8rem;background:var(--bg);padding:.15rem .4rem;border-radius:4px;color:var(--green)}
+
+    /* ─── FOOTER ──────────────────────────────── */
+    footer{border-top:1px solid var(--border);padding:2rem 1.5rem;text-align:center;margin-top:5rem}
+    footer p{font-size:.8rem;color:var(--text-dim)}
+    footer a{color:var(--purple-light);text-decoration:none}
+    footer a:hover{text-decoration:underline}
+
+    /* ─── RESPONSIVE ──────────────────────────── */
+    @media(max-width:768px){
+      .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:rgba(6,6,10,.98);border-bottom:1px solid var(--border);flex-direction:column;padding:1rem 1.5rem;gap:1rem}
+      .nav-links.open{display:flex}
+      .hamburger{display:block}
+      .modes-grid{grid-template-columns:1fr}
+      .features-grid{grid-template-columns:repeat(2,1fr)}
+      .template-list{grid-template-columns:repeat(3,1fr)}
+      .hero{padding:5rem 1rem 3rem}
+      .padlock-art{font-size:.5rem}
+      .section{padding:3rem 1rem}
+      .terminal{font-size:.7rem}
+      .terminal-body{padding:1rem}
+    }
+    @media(max-width:480px){
+      .features-grid{grid-template-columns:1fr}
+      .template-list{grid-template-columns:repeat(2,1fr)}
+      .hero-btns{flex-direction:column;align-items:center}
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-brand">🔐 <span>Envlock</span></a>
+  <button class="hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+  <div class="nav-links">
+    <a href="#how">How It Works</a>
+    <a href="#modes">Modes</a>
+    <a href="#features">Features</a>
+    <a href="#templates">Templates</a>
+    <a href="#security">Security</a>
+    <a href="https://github.com/Atum246/envlock" target="_blank">GitHub</a>
+    <a href="https://www.npmjs.com/package/@adewale0o/envlock" target="_blank">npm</a>
+    <a href="#start" class="nav-cta">Get Started</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="padlock-art" aria-hidden="true">       .-"""-.
+      /        \
+     |  .--.  |
+     | |    | |
+     | | 🔒 | |
+     | |    | |
+     |  '--'  |
+      \      /
+       '-..-'</div>
+  <h1><span class="gradient">Envlock</span></h1>
+  <p>Stop pasting API keys into chat. Store them in an encrypted vault. Let your AI agent read them safely.</p>
+  <div class="hero-btns">
+    <a href="#start" class="btn btn-primary">Get Started →</a>
+    <a href="https://github.com/Atum246/envlock" class="btn btn-ghost" target="_blank">View on GitHub</a>
+  </div>
+  <div class="install-cmd" onclick="navigator.clipboard.writeText('npm install -g @adewale0o/envlock');this.querySelector('.copy').textContent='Copied!'">
+    <span>$</span> npm install -g @adewale0o/envlock
+    <span class="copy">click to copy</span>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="section" id="problem">
+  <div class="section-label">The Problem</div>
+  <h2>Your API keys are in chat history right now</h2>
+  <p class="subtitle">Every time you paste a key into ChatGPT, Claude, or Cursor, it gets logged, stored, and possibly trained on.</p>
+  <div class="problem-grid">
+    <div class="problem-card">
+      <div class="icon">📝</div>
+      <h3>Stored Forever</h3>
+      <p>Chat history lives on servers. You can't delete it. Your keys are there permanently.</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon">🎣</div>
+      <h3>Prompt Injection</h3>
+      <p>A malicious prompt can trick the AI into sending your keys to an attacker. It's happened.</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon">🤖</div>
+      <h3>Training Data</h3>
+      <p>Some providers use conversations for training. Your keys could end up in model weights.</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon">👀</div>
+      <h3>Screen Exposure</h3>
+      <p>Screen sharing, screenshots, recordings — once a key is visible, it's compromised.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how">
+  <div class="section-label">How It Works</div>
+  <h2>Keys go from browser to vault. Chat is never involved.</h2>
+  <p class="subtitle">The AI agent starts a local web server. The user opens a link and pastes keys into a form. Everything is encrypted.</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-content">
+        <h3>Agent installs Envlock</h3>
+        <p>One command: <code>npm install -g @adewale0o/envlock</code>. The agent does this itself.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-content">
+        <h3>Agent initializes the vault</h3>
+        <p><code>envlock init</code> creates an encrypted vault on disk. AES-256 encryption. Master password required.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-content">
+        <h3>Agent starts the web UI</h3>
+        <p><code>envlock serve</code> spins up a local web server. Agent gets a URL with a random access token.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div class="flow-content">
+        <h3>User opens the link</h3>
+        <p>User sees a clean form with 46 service templates. Picks OpenAI, Stripe, Discord, AWS — whatever they need.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">5</div>
+      <div class="flow-content">
+        <h3>User pastes their key</h3>
+        <p>Key goes into the form. Clicks "Save Securely". Key is encrypted and stored. Never touched chat.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">6</div>
+      <div class="flow-content">
+        <h3>Agent reads the key</h3>
+        <p><code>envlock get OPENAI_API_KEY</code> — agent gets the key programmatically. Uses it to call the API. Done.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal Demo -->
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot r"></div>
+      <div class="terminal-dot y"></div>
+      <div class="terminal-dot g"></div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">$ </span><span class="t-cmd">npm install -g @adewale0o/envlock</span></div>
+      <div class="t-out">+ @adewale0o/envlock@1.2.0</div>
+      <br>
+      <div><span class="t-prompt">$ </span><span class="t-cmd">envlock init</span></div>
+      <div class="t-success">✅ Vault initialized successfully!</div>
+      <br>
+      <div><span class="t-prompt">$ </span><span class="t-cmd">envlock serve</span></div>
+      <div class="t-warn">🌐 Envlock Web UI is running!</div>
+      <div class="t-out">  Open this URL in your browser:</div>
+      <div class="t-url">  http://127.0.0.1:3847/?token=a8f3c...</div>
+      <br>
+      <div class="t-out">  ── User opens link, adds keys ──</div>
+      <br>
+      <div><span class="t-prompt">$ </span><span class="t-cmd">envlock get OPENAI_API_KEY --raw</span></div>
+      <div class="t-success">sk-proj-abc123...</div>
+      <br>
+      <div><span class="t-prompt">$ </span><span class="t-cmd">envlock list</span></div>
+      <div class="t-out">  OPENAI_API_KEY    ✅ Set   api_key</div>
+      <div class="t-out">  STRIPE_SECRET     ✅ Set   token</div>
+      <div class="t-out">  GITHUB_TOKEN      ✅ Set   api_key</div>
+    </div>
+  </div>
+</section>
+
+<!-- MODES -->
+<section class="section" id="modes">
+  <div class="section-label">Two Modes</div>
+  <h2>Localhost or network — you choose</h2>
+  <p class="subtitle">The web UI runs in two modes depending on where the agent and user are.</p>
+
+  <div class="modes-grid">
+    <div class="mode-card local">
+      <h3>🏠 Localhost Mode</h3>
+      <p>Agent and user on the <strong>same computer</strong>. Most secure — nothing leaves the machine.</p>
+      <div class="cmd">envlock serve</div>
+      <ul>
+        <li>Agent runs on your laptop</li>
+        <li>You open browser on the same laptop</li>
+        <li>URL: <code>127.0.0.1:PORT</code></li>
+        <li>Nobody else can reach it</li>
+        <li>Best for: Cursor, Claude Code, local OpenClaw</li>
+      </ul>
+    </div>
+    <div class="mode-card network">
+      <h3>📡 Network Mode</h3>
+      <p>Agent on a <strong>server/VPS</strong>, user on a <strong>different device</strong>. Same WiFi or LAN network.</p>
+      <div class="cmd">envlock serve --expose</div>
+      <ul>
+        <li>Agent runs on a VPS or server</li>
+        <li>You open browser on your phone/laptop</li>
+        <li>URL: <code>192.168.x.x:PORT</code></li>
+        <li>Token required for access</li>
+        <li>Best for: Remote servers, team setups</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:2rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem">
+    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.5rem;color:var(--text-bright)">🤔 What does "same network" mean?</h3>
+    <p style="font-size:.875rem;color:var(--text-dim);margin-bottom:.75rem">"Same network" means devices connected to the same WiFi router, LAN, or private cloud network. For example:</p>
+    <ul style="list-style:none;padding:0">
+      <li style="font-size:.85rem;color:var(--text-dim);padding:.25rem 0">✅ Your laptop and phone on the same home WiFi = <strong>same network</strong></li>
+      <li style="font-size:.85rem;color:var(--text-dim);padding:.25rem 0">✅ Your VPS and your laptop connected via VPN = <strong>same network</strong></li>
+      <li style="font-size:.85rem;color:var(--text-dim);padding:.25rem 0">✅ Two computers in the same office = <strong>same network</strong></li>
+      <li style="font-size:.85rem;color:var(--text-dim);padding:.25rem 0">❌ Your home laptop and a random VPS on the internet = <strong>NOT same network</strong> (need port forwarding or tunnel)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-label">Features</div>
+  <h2>Everything you need. Nothing you don't.</h2>
+  <div class="features-grid">
+    <div class="feat"><div class="emoji">🔐</div><h3>AES-256 Encryption</h3><p>Every secret encrypted at rest with PBKDF2 key derivation</p></div>
+    <div class="feat"><div class="emoji">🌐</div><h3>Web UI</h3><p>Clean browser form for users — no keys in chat</p></div>
+    <div class="feat"><div class="emoji">📦</div><h3>46 Templates</h3><p>OpenAI, Stripe, Discord, AWS, and 42 more</p></div>
+    <div class="feat"><div class="emoji">🤖</div><h3>Agent API</h3><p>JSON API for programmatic access by AI agents</p></div>
+    <div class="feat"><div class="emoji">🔑</div><h3>Password Generator</h3><p>Generate keys, tokens, UUIDs, passwords</p></div>
+    <div class="feat"><div class="emoji">📁</div><h3>Profiles</h3><p>Separate dev/staging/prod environments</p></div>
+    <div class="feat"><div class="emoji">🏥</div><h3>Health Checks</h3><p>Validate credential formats automatically</p></div>
+    <div class="feat"><div class="emoji">💾</div><h3>Backups</h3><p>Encrypted backups with one-click restore</p></div>
+    <div class="feat"><div class="emoji">📋</div><h3>Audit Log</h3><p>Every access logged with timestamp</p></div>
+    <div class="feat"><div class="emoji">🔍</div><h3>Search & Tags</h3><p>Find secrets by name, tag, or description</p></div>
+    <div class="feat"><div class="emoji">📤</div><h3>Export</h3><p>Shell, dotenv, Docker, JSON formats</p></div>
+    <div class="feat"><div class="emoji">🔗</div><h3>Share Bundles</h3><p>Encrypted bundles for sharing secrets</p></div>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="section" id="templates">
+  <div class="section-label">Templates</div>
+  <h2>46 services. Pre-built forms.</h2>
+  <p class="subtitle">Users don't have to figure out field names. Pick a service, fill in the blanks.</p>
+
+  <div class="template-cats">
+    <span class="template-cat active" onclick="filterTemplates('all')">All</span>
+    <span class="template-cat" onclick="filterTemplates('ai')">🤖 AI</span>
+    <span class="template-cat" onclick="filterTemplates('social')">📱 Social</span>
+    <span class="template-cat" onclick="filterTemplates('cloud')">☁️ Cloud</span>
+    <span class="template-cat" onclick="filterTemplates('db')">🗄️ Database</span>
+    <span class="template-cat" onclick="filterTemplates('pay')">💳 Payment</span>
+    <span class="template-cat" onclick="filterTemplates('dev')">🛠️ Dev</span>
+  </div>
+
+  <div class="template-list" id="templateList">
+    <div class="template-item" data-cat="ai"><span class="t-icon">🤖</span>OpenAI</div>
+    <div class="template-item" data-cat="ai"><span class="t-icon">🧠</span>Anthropic</div>
+    <div class="template-item" data-cat="ai"><span class="t-icon">💎</span>Gemini</div>
+    <div class="template-item" data-cat="ai"><span class="t-icon">🤗</span>Hugging Face</div>
+    <div class="template-item" data-cat="ai"><span class="t-icon">🔄</span>Replicate</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">🐦</span>Twitter / X</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">💬</span>Discord</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">✈️</span>Telegram</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">📡</span>Slack</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">📸</span>Instagram</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">👤</span>Facebook</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">💼</span>LinkedIn</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">▶️</span>YouTube</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">🎵</span>TikTok</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">🤖</span>Reddit</div>
+    <div class="template-item" data-cat="social"><span class="t-icon">📌</span>Pinterest</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🐙</span>GitHub</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">☁️</span>AWS</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">🌐</span>Google Cloud</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">🔷</span>Azure</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">▲</span>Vercel</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">🟢</span>Netlify</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">🌊</span>DigitalOcean</div>
+    <div class="template-item" data-cat="cloud"><span class="t-icon">🪁</span>Fly.io</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">🐘</span>PostgreSQL</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">🐬</span>MySQL</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">🍃</span>MongoDB</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">🔴</span>Redis</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">🔥</span>Firebase</div>
+    <div class="template-item" data-cat="db"><span class="t-icon">⚡</span>Supabase</div>
+    <div class="template-item" data-cat="pay"><span class="t-icon">💳</span>Stripe</div>
+    <div class="template-item" data-cat="pay"><span class="t-icon">🅿️</span>PayPal</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">📧</span>SendGrid</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🔫</span>Mailgun</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">📱</span>Twilio</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🐕</span>Datadog</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🐛</span>Sentry</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">📊</span>New Relic</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🐳</span>Docker Hub</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">📦</span>npm</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🛡️</span>VPN</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🔑</span>SSH Key</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🔓</span>OAuth</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🎫</span>Bearer Token</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">👤</span>Basic Auth</div>
+    <div class="template-item" data-cat="dev"><span class="t-icon">🔑</span>API Key</div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section class="section" id="security">
+  <div class="section-label">Security</div>
+  <h2>Built for paranoia</h2>
+  <p class="subtitle">Every layer is designed to keep your secrets safe.</p>
+
+  <div class="security-grid">
+    <div class="sec-card">
+      <h3>🔐 AES-256 Encryption</h3>
+      <p>All secrets encrypted at rest with AES-256-CBC. Key derived via PBKDF2 with 100,000 iterations.</p>
+    </div>
+    <div class="sec-card">
+      <h3>🔑 Token Authentication</h3>
+      <p>Web UI requires a random 32-character token. Without it, you see nothing. Token changes every restart.</p>
+    </div>
+    <div class="sec-card">
+      <h3>🏠 Localhost Default</h3>
+      <p>Web UI only listens on 127.0.0.1 by default. Must explicitly opt-in to expose to network.</p>
+    </div>
+    <div class="sec-card">
+      <h3>📋 Audit Logging</h3>
+      <p>Every read, write, delete, and access is logged with timestamp and agent ID.</p>
+    </div>
+    <div class="sec-card">
+      <h3>🔒 File Permissions</h3>
+      <p>Vault files are 0600 — only the owner can read or write. No other user on the system can access them.</p>
+    </div>
+    <div class="sec-card">
+      <h3>⏰ Auto-Expiry</h3>
+      <p>Set secrets to expire after N seconds. Expired secrets are automatically inaccessible.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="section" id="arch">
+  <div class="section-label">Architecture</div>
+  <h2>What's happening under the hood</h2>
+
+  <div class="arch-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                        ENVLOCK CLI                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐    │
+│  │ Commands │   │ Web UI   │   │ Agent    │   │ Export   │    │
+│  │ (CLI)    │   │ Server   │   │ Bridge   │   │ Engine   │    │
+│  └────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘    │
+│       │              │              │              │            │
+│       └──────────────┴──────┬───────┴──────────────┘            │
+│                             │                                   │
+│                    ┌────────▼────────┐                          │
+│                    │   Vault Core    │                          │
+│                    │   (AES-256)     │                          │
+│                    └────────┬────────┘                          │
+│                             │                                   │
+│       ┌─────────┬───────────┼───────────┬─────────┐            │
+│       │         │           │           │         │            │
+│  ┌────▼───┐ ┌───▼────┐ ┌───▼────┐ ┌───▼────┐ ┌──▼─────┐     │
+│  │Secrets │ │ Slots  │ │ Audit  │ │History │ │Backups │     │
+│  │(enc)   │ │(enc)   │ │ Log    │ │        │ │(enc)   │     │
+│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘     │
+│                                                               │
+│  ~/.envlock/                                                  │
+│  ├── vault.enc      ← encrypted secrets                      │
+│  ├── slots.enc      ← encrypted metadata                     │
+│  ├── audit.json     ← access log                             │
+│  ├── history/       ← change tracking                        │
+│  ├── profiles/      ← dev/staging/prod                       │
+│  └── backups/       ← encrypted snapshots                    │
+└───────────────────────────────────────────────────────────────┘
+  </div>
+</section>
+
+<!-- GET STARTED -->
+<section class="section" id="start">
+  <div class="getstarted">
+    <h2>Get Started</h2>
+    <p>Takes 30 seconds. No sign-up, no cloud, no BS.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Install: <code>npm install -g @adewale0o/envlock</code></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Initialize: <code>envlock init</code></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Start web UI: <code>envlock serve</code></div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">Open the URL in your browser. Add your keys. Done.</div>
+      </div>
+    </div>
+    <div class="hero-btns" style="margin-top:1.5rem">
+      <a href="https://github.com/Atum246/envlock" class="btn btn-primary" target="_blank">View on GitHub →</a>
+      <a href="https://www.npmjs.com/package/@adewale0o/envlock" class="btn btn-ghost" target="_blank">View on npm</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Built with 💜 by <a href="https://github.com/Atum246">John</a> & <a href="#">Neo</a> · <a href="https://github.com/Atum246/envlock">GitHub</a> · <a href="https://www.npmjs.com/package/@adewale0o/envlock">npm</a> · MIT License</p>
+</footer>
+
+<script>
+function filterTemplates(cat) {
+  document.querySelectorAll('.template-cat').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.template-item').forEach(item => {
+    if (cat === 'all' || item.dataset.cat === cat) {
+      item.style.display = '';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>
